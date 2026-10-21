@@ -93,6 +93,17 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);borde
 #catForm{display:grid;grid-template-columns:4.5em 1fr auto;gap:8px}
 #catForm button{border:0;border-radius:10px;padding:0 14px;background:var(--accent);color:var(--bg);font-weight:600}
 .hint{font-size:.82rem;color:var(--muted);margin:0}
+.filebtn{display:block;text-align:center;border:1px dashed var(--accent);color:var(--accent);border-radius:10px;padding:12px;font-weight:600;cursor:pointer}
+.preview{display:flex;flex-direction:column;gap:10px}
+.preview ul{list-style:none;margin:0;padding:0;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.preview li{display:grid;grid-template-columns:4.5em 1fr auto;gap:8px;padding:8px 10px;border-top:1px solid var(--line);font-size:.88rem}
+.preview li:first-child{border-top:0}
+.preview li span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.preview .acts{display:flex;gap:8px}
+.preview .acts button{flex:1;border-radius:10px;padding:11px;font-weight:600;border:1px solid var(--line);background:var(--bg)}
+.preview .acts .ok{background:var(--accent);color:var(--bg);border:0}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.setrow select{width:auto}
 @media (prefers-reduced-motion:reduce){.meter i{transition:none}}
 </style>
 </head>
@@ -111,11 +122,11 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);borde
   <section class="hero" aria-label="Resumo do mês">
     <div>
       <div class="label">Saldo do mês</div>
-      <div class="big num" id="balance">R$ 0,00</div>
+      <div class="big num" id="balance">0,00</div>
     </div>
     <div class="split">
-      <div><span class="label">Ganhos</span><b class="num" id="incTotal">R$ 0,00</b></div>
-      <div><span class="label">Gastos</span><b class="num" id="expTotal">R$ 0,00</b></div>
+      <div><span class="label">Ganhos</span><b class="num" id="incTotal">0,00</b></div>
+      <div><span class="label">Gastos</span><b class="num" id="expTotal">0,00</b></div>
     </div>
     <div class="meter" id="meter"><i style="width:0"></i></div>
     <div class="row">
@@ -123,7 +134,7 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);borde
       <button class="budget" id="editBudget">Definir orçamento</button>
     </div>
     <form id="budgetForm" hidden>
-      <input id="budgetInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Orçamento mensal (R$)" aria-label="Orçamento mensal">
+      <input id="budgetInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Orçamento mensal" aria-label="Orçamento mensal">
       <button type="submit">Salvar</button>
     </form>
   </section>
@@ -136,7 +147,7 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);borde
         <button type="button" data-kind="income" aria-pressed="false">Ganho</button>
       </div>
       <input class="full" id="fDesc" required maxlength="60" placeholder="Descrição (ex.: mercado)" aria-label="Descrição">
-      <input id="fValue" type="number" required min="0.01" step="0.01" inputmode="decimal" placeholder="Valor (R$)" aria-label="Valor">
+      <input id="fValue" type="number" required min="0.01" step="0.01" inputmode="decimal" placeholder="Valor" aria-label="Valor">
       <input id="fDate" type="date" required aria-label="Data">
       <select class="full" id="fCat" aria-label="Categoria"></select>
       <button class="primary" type="submit" id="addBtn">Adicionar gasto</button>
@@ -171,7 +182,18 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);borde
   </section>
 
   <section class="card">
-    <h2>Backup</h2>
+    <h2>Importar extrato do banco</h2>
+    <p class="hint">No site do UniCredit (pelo navegador, não pelo app), abra a lista de movimentos e exporte em <b>CSV</b> ou <b>XLS</b>. Depois escolha o arquivo aqui. Lançamentos repetidos são ignorados.</p>
+    <label class="filebtn" for="stmtFile">Escolher arquivo do extrato</label>
+    <input type="file" id="stmtFile" accept=".csv,.txt,.xls,.xlsx,.qif,text/csv" hidden>
+    <div class="preview" id="preview" hidden></div>
+  </section>
+
+  <section class="card">
+    <h2>Ajustes e backup</h2>
+    <div class="setrow"><span>Moeda</span>
+      <select id="currencySel" aria-label="Moeda"><option value="EUR">Euro (€)</option><option value="BRL">Real (R$)</option></select>
+    </div>
     <p class="hint">Os dados ficam só neste aparelho. Salve um backup para não perder nada se trocar de celular.</p>
     <div class="backup">
       <button type="button" id="exportBtn">Salvar backup</button>
@@ -186,7 +208,9 @@ input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);borde
 <script>
 const BASE_EXP={mercado:["🛒","Mercado"],moradia:["🏠","Moradia"],transporte:["🚌","Transporte"],lazer:["🎉","Lazer"],saude:["💊","Saúde"],contas:["💡","Contas"],outros:["📦","Outros"]};
 const INC={salario:["💼","Salário"],extra:["✨","Renda extra"],presente:["🎁","Presente"],outros_in:["💰","Outros ganhos"]};
-const brl=v=>v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+let currency="EUR";
+const brl=v=>v.toLocaleString("pt-BR",{style:"currency",currency});
+const sym=()=>currency==="EUR"?"€":"R$";
 const $=id=>document.getElementById(id);
 let items=[],budget=0,customCats=[],colRef=null,kind="expense";
 let view=new Date();view.setDate(1);
@@ -205,8 +229,8 @@ function fillCatSelect(){
 $("fDate").value=today();
 
 const local={
-  load(){try{const d=JSON.parse(localStorage.getItem("meucaixa")||"{}");items=d.items||[];budget=d.budget||0;customCats=d.customCats||[]}catch(e){}},
-  save(){try{localStorage.setItem("meucaixa",JSON.stringify({items,budget,customCats}))}catch(e){}}
+  load(){try{const d=JSON.parse(localStorage.getItem("meucaixa")||"{}");items=d.items||[];budget=d.budget||0;customCats=d.customCats||[];currency=d.currency||"EUR"}catch(e){}},
+  save(){try{localStorage.setItem("meucaixa",JSON.stringify({items,budget,customCats,currency}))}catch(e){}}
 };
 
 function sums(key){
@@ -222,7 +246,7 @@ function renderChart(){
   const W=520,H=200,top=16,bot=40,left=8,plotH=H-top-bot,colW=(W-left*2)/6,bw=Math.min(22,colW/3);
   const nice=v=>v>=1000?(v/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})+" mil":Math.round(v).toLocaleString("pt-BR");
   let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:340px;display:block" role="img" aria-label="Ganhos e gastos dos últimos 6 meses">`;
-  [0.5,1].forEach(f=>{const y=top+plotH*(1-f);s+=`<line x1="${left}" x2="${W-left}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="3 4"/><text x="${W-left}" y="${y-4}" text-anchor="end" font-size="10" fill="var(--muted)">R$ ${nice(max*f)}</text>`});
+  [0.5,1].forEach(f=>{const y=top+plotH*(1-f);s+=`<line x1="${left}" x2="${W-left}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="3 4"/><text x="${W-left}" y="${y-4}" text-anchor="end" font-size="10" fill="var(--muted)">${sym()} ${nice(max*f)}</text>`});
   s+=`<line x1="${left}" x2="${W-left}" y1="${top+plotH}" y2="${top+plotH}" stroke="var(--line)"/>`;
   data.forEach((r,i)=>{
     const cx=left+colW*i+colW/2,cur=i===5;
@@ -269,7 +293,13 @@ function render(){
     li.innerHTML=`<span class="dot"></span><span class="desc"><b></b><small></small></span><span class="num amt ${isIn?"in":"out"}"></span><button class="del" aria-label="Apagar lançamento">×</button>`;
     li.querySelector(".dot").textContent=e;li.querySelector("b").textContent=x.desc;li.querySelector("small").textContent=`${da}/${mo} · ${n}`;
     li.children[2].textContent=(isIn?"+ ":"− ")+brl(x.value);
-    li.querySelector(".del").onclick=()=>removeItem(x.id);list.append(li)});
+    li.querySelector(".del").onclick=()=>removeItem(x.id);
+    const sm=li.querySelector("small");sm.style.cursor="pointer";sm.textContent+=" ✎";sm.title="Mudar categoria";
+    sm.onclick=()=>{const sel=document.createElement("select");sel.setAttribute("aria-label","Categoria");sel.style.padding="4px 8px";sel.style.fontSize=".85rem";
+      for(const [k,[e2,n2]] of Object.entries(x.type==="income"?INC:expCats())){const o=document.createElement("option");o.value=k;o.textContent=e2+" "+n2;sel.append(o)}
+      sel.value=x.cat;sm.replaceWith(sel);sel.focus();
+      sel.onchange=()=>{x.cat=sel.value;local.save();render()};sel.onblur=()=>render()};
+    list.append(li)});
 
   const chips=$("chips");chips.replaceChildren();
   Object.values(BASE_EXP).forEach(([e,n])=>{const c=document.createElement("span");c.className="chip fixed";c.textContent=e+" "+n;chips.append(c)});
@@ -324,16 +354,142 @@ local.load();render();
 note("Seus lançamentos ficam salvos neste celular. Faça um backup de vez em quando.");
 
 $("exportBtn").onclick=()=>{
-  const blob=new Blob([JSON.stringify({app:"meucaixa",v:1,items,budget,customCats},null,2)],{type:"application/json"});
+  const blob=new Blob([JSON.stringify({app:"meucaixa",v:1,items,budget,customCats,currency},null,2)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="meucaixa-backup-"+today()+".json";
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 };
 $("importFile").addEventListener("change",async e=>{
   const f=e.target.files[0];if(!f)return;
   try{const d=JSON.parse(await f.text());if(d.app!=="meucaixa"||!Array.isArray(d.items))throw 0;
-    items=d.items;budget=d.budget||0;customCats=d.customCats||[];local.save();render();note("Backup restaurado.");}
+    items=d.items;budget=d.budget||0;customCats=d.customCats||[];currency=d.currency||currency;local.save();render();note("Backup restaurado.");}
   catch(err){note("Esse arquivo não é um backup do Meu Caixa.")}
   e.target.value="";
+});
+
+$("currencySel").value=currency;
+$("currencySel").onchange=e=>{currency=e.target.value;local.save();render()};
+
+// ---------- Importação de extrato ----------
+const KW=[
+ ["mercado",/esselunga|conad|coop|lidl|carrefour|eurospin|pam |penny|aldi|md spa|despar|famila|iper|tigros|bennet|supermerc|alimentari/i],
+ ["moradia",/affitto|condominio|ikea|leroy/i],
+ ["transporte",/trenitalia|italo|atm |\batm\b|atac|gtt|benzina|carbur|\beni\b|q8|tamoil|\bip\b|esso|telepass|autostrad|uber|taxi|ryanair|easyjet|parchegg/i],
+ ["saude",/farmacia|medic|ospedal|dentist|clinica/i],
+ ["contas",/enel|a2a|hera|iren|edison|\btim\b|vodafone|iliad|windtre|fastweb|bolletta|canone|assicura|imposta|f24/i],
+ ["lazer",/netflix|spotify|disney|prime video|amazon prime|cinema|ristorante|pizzeria|bar |mcdonald|burger|deliveroo|glovo|just eat|playstation|steam/i]
+];
+const guessCat=(desc,isIn)=>{
+  if(isIn)return /stipendio|salario|emolument|retribuz|busta paga/i.test(desc)?"salario":"outros_in";
+  const custom=customCats.find(c=>desc.toLowerCase().includes(c.n.toLowerCase()));if(custom)return custom.k;
+  for(const [k,re] of KW)if(re.test(desc))return k;return "outros";
+};
+const parseAmount=raw=>{
+  if(raw==null)return NaN;if(typeof raw==="number")return raw;
+  let t=String(raw).replace(/[€\s"']/g,"").replace(/EUR/i,"");
+  if(!t)return NaN;
+  let neg=false;if(/^\(.*\)$/.test(t)){neg=true;t=t.slice(1,-1)}
+  if(t.endsWith("-")){neg=true;t=t.slice(0,-1)}
+  const lc=t.lastIndexOf(","),ld=t.lastIndexOf(".");
+  if(lc>ld)t=t.replace(/\./g,"").replace(",",".");else t=t.replace(/,/g,"");
+  const n=parseFloat(t);return neg?-Math.abs(n):n;
+};
+const parseDate=raw=>{
+  if(raw instanceof Date&&!isNaN(raw))return raw.getFullYear()+"-"+pad(raw.getMonth()+1)+"-"+pad(raw.getDate());
+  if(typeof raw==="number"){const d=new Date(Math.round((raw-25569)*864e5));return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate())}
+  const t=String(raw||"").trim();let m;
+  if(m=t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/)){let y=+m[3];if(y<100)y+=2000;return y+"-"+pad(+m[2])+"-"+pad(+m[1])}
+  if(m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))return m[1]+"-"+pad(+m[2])+"-"+pad(+m[3]);
+  return null;
+};
+const norm=s=>String(s||"").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+function rowsToTx(rows){
+  // acha a linha de cabeçalho
+  let h=-1,H=[];
+  for(let i=0;i<Math.min(rows.length,40);i++){
+    const r=rows[i].map(norm);
+    if(r.some(c=>/^data|^date|^data operazione|^data contabile/.test(c))&&r.some(c=>/euro|importo|amount|entrate|uscite|dare|avere|accrediti|addebiti|valor/.test(c))){h=i;H=r;break}
+  }
+  if(h<0)throw new Error("cabecalho");
+  const idx=re=>H.findIndex(c=>re.test(c));
+  const iDate=idx(/^data( operazione| contabile)?$|^date$|^data$/)>=0?idx(/^data( operazione| contabile)?$|^date$|^data$/):idx(/data|date/);
+  const iDesc=idx(/descrizione|description|causale descr|dettagli|operazione$|beneficiario|motivo/);
+  const iAmt=idx(/^euro$|importo|amount|^valor/);
+  const iIn=idx(/entrate|avere|accrediti/),iOut=idx(/uscite|dare|addebiti/);
+  const n=H.length,out=[];
+  for(const r0 of rows.slice(h+1)){
+    if(!r0||r0.every(c=>String(c??"").trim()===""))continue;
+    let r=r0;
+    // descrição com ";" sem aspas: junta as colunas a mais na descrição
+    if(r.length>n&&iDesc>=0){const extra=r.length-n;r=[...r.slice(0,iDesc),r.slice(iDesc,iDesc+extra+1).join(";"),...r.slice(iDesc+extra+1)]}
+    const date=parseDate(r[iDate]);if(!date)continue;
+    let amt;
+    if(iAmt>=0)amt=parseAmount(r[iAmt]);
+    else{const a=parseAmount(r[iIn]),b=parseAmount(r[iOut]);amt=(isNaN(a)?0:Math.abs(a))-(isNaN(b)?0:Math.abs(b))}
+    if(!amt||isNaN(amt))continue;
+    const desc=String(iDesc>=0?r[iDesc]:"").replace(/\s+/g," ").trim()||"Movimento bancário";
+    out.push({date,amt,desc});
+  }
+  return out;
+}
+function parseQIF(text){
+  const out=[];let cur={};
+  text.split(/\r?\n/).forEach(l=>{const c=l[0],v=l.slice(1).trim();
+    if(c==="D")cur.date=parseDate(v.replace(/'/g,"/"));else if(c==="T"||c==="U")cur.amt=parseAmount(v);
+    else if(c==="P"||(c==="M"&&!cur.desc))cur.desc=v;
+    else if(c==="^"){if(cur.date&&cur.amt)out.push({date:cur.date,amt:cur.amt,desc:cur.desc||"Movimento bancário"});cur={}}});
+  return out;
+}
+function splitCSV(text){
+  const lines=text.split(/\r?\n/);
+  const sample=lines.slice(0,30).join("\n");
+  const d=[";","\t",","].sort((a,b)=>sample.split(b).length-sample.split(a).length)[0];
+  return lines.map(line=>{const res=[];let cur="",q=false;
+    for(let i=0;i<line.length;i++){const ch=line[i];
+      if(ch==='"'){if(q&&line[i+1]==='"'){cur+='"';i++}else q=!q}
+      else if(ch===d&&!q){res.push(cur);cur=""}else cur+=ch}
+    res.push(cur);return res});
+}
+function loadXLSX(){return new Promise((ok,no)=>{if(window.XLSX)return ok();const s=document.createElement("script");
+  s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=ok;s.onerror=()=>no(new Error("lib"));document.head.append(s)})}
+let pending=[];
+$("stmtFile").addEventListener("change",async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;
+  const pv=$("preview");pv.hidden=false;pv.innerHTML='<p class="hint">Lendo o arquivo…</p>';
+  try{
+    let tx;const name=f.name.toLowerCase();
+    if(/\.xlsx?$/.test(name)){
+      await loadXLSX();const wb=XLSX.read(await f.arrayBuffer(),{type:"array",cellDates:true});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:""});tx=rowsToTx(rows);
+    }else{
+      let text=await f.text();if(text.includes("�")){text=new TextDecoder("windows-1252").decode(await f.arrayBuffer())}
+      tx=/^!type/im.test(text)?parseQIF(text):rowsToTx(splitCSV(text));
+    }
+    const have=new Set(items.map(x=>x.ikey).filter(Boolean));
+    const seen=new Set();
+    pending=tx.map(t=>{const ikey=t.date+"|"+t.amt.toFixed(2)+"|"+t.desc.slice(0,60).toLowerCase();
+      return {type:t.amt>0?"income":"expense",desc:t.desc.slice(0,60),value:Math.round(Math.abs(t.amt)*100)/100,cat:guessCat(t.desc,t.amt>0),date:t.date,created:Date.now(),ikey}})
+      .filter(x=>{if(have.has(x.ikey)||seen.has(x.ikey))return false;seen.add(x.ikey);return true});
+    const dup=tx.length-pending.length;
+    if(!tx.length){pv.innerHTML='<p class="hint">Não encontrei movimentos nesse arquivo. Confira se é o extrato exportado em CSV ou XLS.</p>';return}
+    if(!pending.length){pv.innerHTML='<p class="hint">Todos os movimentos desse arquivo já estavam no app.</p>';return}
+    const inc=pending.filter(x=>x.type==="income").reduce((s,x)=>s+x.value,0),exp=pending.filter(x=>x.type!=="income").reduce((s,x)=>s+x.value,0);
+    pv.innerHTML=`<p class="hint"></p><ul></ul><div class="acts"><button type="button" id="impCancel">Cancelar</button><button type="button" class="ok" id="impOk"></button></div>`;
+    pv.querySelector("p").textContent=`Encontrei ${pending.length} lançamentos: ${brl(exp)} em gastos e ${brl(inc)} em ganhos.`+(dup?` ${dup} repetidos foram ignorados.`:"")+" As categorias foram sugeridas automaticamente.";
+    const ul=pv.querySelector("ul");
+    pending.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,50).forEach(x=>{const li=document.createElement("li");const [,m,d]=x.date.split("-");
+      li.innerHTML="<span class='num'></span><span></span><span class='num'></span>";li.children[0].textContent=d+"/"+m;li.children[1].textContent=catInfo(x)[0]+" "+x.desc;
+      li.children[2].textContent=(x.type==="income"?"+ ":"− ")+brl(x.value);if(x.type==="income")li.children[2].style.color="var(--gain)";ul.append(li)});
+    $("impOk").textContent=`Importar ${pending.length}`;
+    $("impCancel").onclick=()=>{pending=[];pv.hidden=true};
+    $("impOk").onclick=()=>{
+      pending.forEach((x,i)=>{x.id=String(Date.now())+i+Math.random().toString(36).slice(2,5);items.push(x)});
+      const last=pending.map(x=>x.date).sort().pop();if(last){const [y,m]=last.split("-");view=new Date(+y,+m-1,1)}
+      local.save();render();note(`${pending.length} lançamentos importados. Toque na categoria de um lançamento para mudar.`);pending=[];pv.hidden=true;
+    };
+  }catch(err){
+    pv.innerHTML='<p class="hint"></p>';
+    pv.querySelector("p").textContent=err.message==="lib"?"Para ler arquivos XLS é preciso internet na primeira vez. Conecte-se e tente de novo, ou exporte em CSV.":"Não consegui entender esse arquivo. Exporte o extrato em CSV pelo site do UniCredit e tente de novo, ou me mande o arquivo para eu ajustar o app.";
+  }
 });
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 </script>
