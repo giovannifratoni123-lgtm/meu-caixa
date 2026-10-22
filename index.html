@@ -371,12 +371,12 @@ $("currencySel").onchange=e=>{currency=e.target.value;local.save();render()};
 
 // ---------- Importação de extrato ----------
 const KW=[
- ["mercado",/esselunga|conad|coop|lidl|carrefour|eurospin|pam |penny|aldi|md spa|despar|famila|iper|tigros|bennet|supermerc|alimentari/i],
- ["moradia",/affitto|condominio|ikea|leroy/i],
- ["transporte",/trenitalia|italo|atm |\batm\b|atac|gtt|benzina|carbur|\beni\b|q8|tamoil|\bip\b|esso|telepass|autostrad|uber|taxi|ryanair|easyjet|parchegg/i],
- ["saude",/farmacia|medic|ospedal|dentist|clinica/i],
- ["contas",/enel|a2a|hera|iren|edison|\btim\b|vodafone|iliad|windtre|fastweb|bolletta|canone|assicura|imposta|f24/i],
- ["lazer",/netflix|spotify|disney|prime video|amazon prime|cinema|ristorante|pizzeria|bar |mcdonald|burger|deliveroo|glovo|just eat|playstation|steam/i]
+ ["mercado",/alimentari e spesa|esselunga|conad|coop|lidl|carrefour|eurospin|pam |penny|aldi|md spa|despar|famila|iper|tigros|bennet|supermerc|alimentari/i],
+ ["moradia",/^casa$|: casa$|affitto|condominio|ikea|leroy/i],
+ ["transporte",/trasporti|trenitalia|italo|atm |\batm\b|atac|gtt|benzina|carbur|\beni\b|q8|tamoil|\bip\b|esso|telepass|autostrad|uber|taxi|ryanair|easyjet|parchegg/i],
+ ["saude",/salute|farmacia|medic|ospedal|dentist|clinica/i],
+ ["contas",/utenze|assicurazioni e finanz|enel|a2a|hera|iren|edison|\btim\b|vodafone|iliad|windtre|fastweb|bolletta|canone|assicura|imposta|f24/i],
+ ["lazer",/tempo libero|netflix|spotify|disney|prime video|amazon prime|cinema|ristorante|pizzeria|bar |mcdonald|burger|deliveroo|glovo|just eat|playstation|steam/i]
 ];
 const guessCat=(desc,isIn)=>{
   if(isIn)return /stipendio|salario|emolument|retribuz|busta paga/i.test(desc)?"salario":"outros_in";
